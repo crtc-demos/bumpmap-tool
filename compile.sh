@@ -1,2 +1,2 @@
 #!/bin/sh
-ocamlc -g -I +camlimages camlimages_core.cma camlimages_all.cma bumpmap.ml -o bumpmap
+ocamlopt -g -I +camlimages camlimages_core.cmxa camlimages_all.cmxa bumpmap.ml -o bumpmap
