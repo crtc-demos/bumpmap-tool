@@ -41,7 +41,7 @@ let y_slope img xpos ypos ysize =
     ((y2 -. y1) +. (y1 -. y0)) /. 2.0
 
 let slope_int s =
-  let si = int_of_float (s *. 128.0) in
+  let si = int_of_float (-.s *. 128.0) in
   let si = min si 127 in
   let si = max si (-128) in
   si + 128
@@ -59,8 +59,10 @@ let make_offset_img oimg img xsize ysize =
     for y = 0 to ysize - 1 do
       let x_s = slope_int (x_slope img x y xsize)
       and y_s = slope_int (y_slope img x y ysize) in
-      Rgba32.set oimg x y { color = { Rgb.r = x_s; g = x_s; b = x_s };
-			    alpha = y_s }
+      (* S-difference in the alpha channel, T-difference in the intensity
+         channel.  *)
+      Rgba32.set oimg x y { color = { Rgb.r = y_s; g = y_s; b = y_s };
+			    alpha = x_s }
     done
   done
 
