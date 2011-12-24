@@ -54,15 +54,17 @@ let make_rgba32 img =
   | Images.Rgba32 i -> i
   | Images.Cmyk32 i -> failwith "CMYK images unsupported"
 
-let make_offset_img oimg img xsize ysize =
+let make_offset_img oimg img xsize ysize inverse =
   for x = 0 to xsize - 1 do
     for y = 0 to ysize - 1 do
       let x_s = slope_int (x_slope img x y xsize)
       and y_s = slope_int (y_slope img x y ysize) in
+      let x_s' = if inverse then 255 - x_s else x_s
+      and y_s' = if inverse then 255 - y_s else y_s in
       (* S-difference in the alpha channel, T-difference in the intensity
          channel.  *)
-      Rgba32.set oimg x y { color = { Rgb.r = y_s; g = y_s; b = y_s };
-			    alpha = x_s }
+      Rgba32.set oimg x y { color = { Rgb.r = y_s'; g = y_s'; b = y_s' };
+			    alpha = x_s' }
     done
   done
 
@@ -78,10 +80,12 @@ let string_of_img_format = function
 
 let _ =
   let infile = ref ""
-  and outfile = ref "" in
+  and outfile = ref ""
+  and inverse = ref false in
   let argspec =
-    ["-o", Arg.Set_string outfile, "Set output file"]
-  and usage = "Usage: bumpmap infile -o outfile" in
+    ["-o", Arg.Set_string outfile, "Set output file";
+     "-i", Arg.Set inverse, "Invert (black for high points)"]
+  and usage = "Usage: bumpmap [-i] infile -o outfile" in
   Arg.parse argspec (fun name -> infile := name) usage;
   if !infile = "" || !outfile = "" then begin
     Arg.usage argspec usage;
@@ -91,7 +95,7 @@ let _ =
   let xsize, ysize = Images.size img in
   Printf.printf "Got image: size %d x %d\n" xsize ysize;
   let offsetimg = Rgba32.create xsize ysize in
-  make_offset_img offsetimg (make_rgba32 img) xsize ysize;
+  make_offset_img offsetimg (make_rgba32 img) xsize ysize !inverse;
   let ofmt = Images.guess_format !outfile in
   Printf.printf "Saving as format: %s\n" (string_of_img_format ofmt);
   Images.save !outfile (Some ofmt) [] (Images.Rgba32 offsetimg)
