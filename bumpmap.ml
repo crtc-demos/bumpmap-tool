@@ -68,6 +68,17 @@ let make_offset_img oimg img xsize ysize inverse =
     done
   done
 
+let convert_blender_normalmap oimg img xsize ysize =
+  for x = 0 to xsize - 1 do
+    for y = 0 to ysize - 1 do
+      let ipix = Rgba32.get img x ((ysize - 1) - y) in
+      let xslope = ipix.color.Rgb.r
+      and yslope = ipix.color.Rgb.g in
+      Rgba32.set oimg x y { color = { Rgb.r = xslope; g = xslope; b = xslope };
+			    alpha = yslope }
+    done
+  done
+
 let string_of_img_format = function
     Images.Gif -> "gif"
   | Images.Bmp -> "bmp"
@@ -81,11 +92,13 @@ let string_of_img_format = function
 let _ =
   let infile = ref ""
   and outfile = ref ""
+  and blender_mode = ref false
   and inverse = ref false in
   let argspec =
     ["-o", Arg.Set_string outfile, "Set output file";
-     "-i", Arg.Set inverse, "Invert (black for high points)"]
-  and usage = "Usage: bumpmap [-i] infile -o outfile" in
+     "-i", Arg.Set inverse, "Invert (black for high points)";
+     "-b", Arg.Set blender_mode, "Blender baked-normalmap mode"]
+  and usage = "Usage: bumpmap [-i] [-b] infile -o outfile" in
   Arg.parse argspec (fun name -> infile := name) usage;
   if !infile = "" || !outfile = "" then begin
     Arg.usage argspec usage;
@@ -95,7 +108,10 @@ let _ =
   let xsize, ysize = Images.size img in
   Printf.printf "Got image: size %d x %d\n" xsize ysize;
   let offsetimg = Rgba32.create xsize ysize in
-  make_offset_img offsetimg (make_rgba32 img) xsize ysize !inverse;
+  if !blender_mode then
+    convert_blender_normalmap offsetimg (make_rgba32 img) xsize ysize
+  else
+    make_offset_img offsetimg (make_rgba32 img) xsize ysize !inverse;
   let ofmt = Images.guess_format !outfile in
   Printf.printf "Saving as format: %s\n" (string_of_img_format ofmt);
   Images.save !outfile (Some ofmt) [] (Images.Rgba32 offsetimg)
