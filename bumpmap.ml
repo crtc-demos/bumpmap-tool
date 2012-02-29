@@ -68,14 +68,30 @@ let make_offset_img oimg img xsize ysize inverse =
     done
   done
 
-let convert_blender_normalmap oimg img xsize ysize =
+let convert_blender_normalmap oimg img xsize ysize inverse =
   for x = 0 to xsize - 1 do
     for y = 0 to ysize - 1 do
       let ipix = Rgba32.get img x ((ysize - 1) - y) in
-      let xslope = ipix.color.Rgb.r
-      and yslope = ipix.color.Rgb.g in
-      Rgba32.set oimg x y { color = { Rgb.r = xslope; g = xslope; b = xslope };
-			    alpha = yslope }
+      let xslope = ipix.color.Rgb.g
+      and yslope = ipix.color.Rgb.r in
+      let xslope' = if inverse then 255 - xslope else xslope
+      and yslope' = if inverse then 255 - yslope else yslope in
+      Rgba32.set oimg x y
+        { color = { Rgb.r = xslope'; g = xslope'; b = xslope' };
+	  alpha = yslope' }
+    done
+  done
+
+let convert_blender_objspace_normalmap oimg img xsize ysize =
+  for x = 0 to xsize - 1 do
+    for y = 0 to ysize - 1 do
+      let ipix = Rgba32.get img x ((ysize - 1) - y) in
+      let r = ipix.color.Rgb.r
+      and g = ipix.color.Rgb.g
+      and b = ipix.color.Rgb.b in
+      Rgba32.set oimg x y
+        { color = { Rgb.r = 0; g = r; b = g };
+	  alpha = b }
     done
   done
 
@@ -93,11 +109,13 @@ let _ =
   let infile = ref ""
   and outfile = ref ""
   and blender_mode = ref false
+  and blender_objspace_mode = ref false
   and inverse = ref false in
   let argspec =
     ["-o", Arg.Set_string outfile, "Set output file";
      "-i", Arg.Set inverse, "Invert (black for high points)";
-     "-b", Arg.Set blender_mode, "Blender baked-normalmap mode"]
+     "-b", Arg.Set blender_mode, "Blender tangent normalmap mode";
+     "-B", Arg.Set blender_objspace_mode, "Blender object-space normal mode"]
   and usage = "Usage: bumpmap [-i] [-b] infile -o outfile" in
   Arg.parse argspec (fun name -> infile := name) usage;
   if !infile = "" || !outfile = "" then begin
@@ -109,7 +127,9 @@ let _ =
   Printf.printf "Got image: size %d x %d\n" xsize ysize;
   let offsetimg = Rgba32.create xsize ysize in
   if !blender_mode then
-    convert_blender_normalmap offsetimg (make_rgba32 img) xsize ysize
+    convert_blender_normalmap offsetimg (make_rgba32 img) xsize ysize !inverse
+  else if !blender_objspace_mode then
+    convert_blender_objspace_normalmap offsetimg (make_rgba32 img) xsize ysize
   else
     make_offset_img offsetimg (make_rgba32 img) xsize ysize !inverse;
   let ofmt = Images.guess_format !outfile in
